@@ -558,6 +558,19 @@ if __name__ == "__main__":
     character_name = list() # 儲存寵物物件索引值
     weapon_list = list() # 儲存武器物件
 
+    '''字幕設定'''
+    # 顏色設定
+    white = 255, 255, 255
+    red = 255, 0, 0
+    yellow = 255, 255, 0
+    myfont = pygame.font.Font("清松手寫體3.ttf", 40) # 設定字幕字體與大小
+    lvMyfont = pygame.font.Font("清松手寫體3.ttf", 35) # 設定字幕字體與大小
+    font_index = 0
+
+    # 公告字幕顯示位置
+    pos_x = 20
+    pos_y = 50
+    pos = pos_x, pos_y, 100, 100
 
     '''BGM'''
     pygame.mixer.init() # 初始化
@@ -578,6 +591,14 @@ if __name__ == "__main__":
     # 玩家受爆擊
     player_hurt_more = pygame.mixer.Sound("bgm/player_hurt_more.mp3")
     player_hurt.set_volume(1) # 音量調整(0.1~1)
+    #玩家升等
+    player_lvup = pygame.mixer.Sound("bgm/lvup.mp3")
+    #寵物被攻擊
+    pet_hurt = pygame.mixer.Sound("bgm/atk.mp3")
+    pet_hurt.set_volume(0.7) # 音量調整(0.1~1)
+    #寵物被爆擊
+    pet_hurt_more = pygame.mixer.Sound("bgm/atk_more.mp3")
+    pet_hurt_more.set_volume(1) # 音量調整(0.1~1)
 
     '''玩家創建'''
     # num, zoom, lv, ATK_growing, DEF_growing, HP_growing, ATK, DEF, HP, LUK, SPD, left, top
@@ -606,13 +627,14 @@ if __name__ == "__main__":
     creat(670, False, 4, 1, 3, 2, 2, 13, 6, 12, 11, 20) # 塔斯夫
     creat(325, False, 2, 1, 3, 3, 3, 12, 8, 3, 12, 40) # 斯天多斯
     creat(302, False, 2, 1, 5, 2, 3, 16, 6, 8, 11, 50) # 貝魯卡
-    creat(672, True, 1, 1, 6, 4, 3, 18, 7, 8, 12, 60) # 班尼迪克
+    creat(672, True, 1, 1, 6, 4, 5, 18, 7, 8, 120, 60) # 班尼迪克
 
 
 clock = pygame.time.Clock() # 計時物件
 while True:
     clock.tick(60) # 每秒執行次數
     screen.blit(bg_img,(0,0))
+
  
     for event in pygame.event.get():
         if event.type == pygame.QUIT:
@@ -670,6 +692,27 @@ while True:
                     weapon_list.append(weapon)
                     weapon_group.add(weapon)
 
+                '''加點監測'''
+                if player.ab_point != 0:
+                    if event.key == pygame.K_1:
+                        player.ATK += 1
+                        player.ab_point -= 1
+                    elif event.key == pygame.K_2:
+                        player.DEF += 1
+                        player.ab_point -= 1
+                    elif event.key == pygame.K_3:
+                        player.SPD += 0.5
+                        player.ab_point -= 1
+                    elif event.key == pygame.K_4:
+                        player.LUK += 1
+                        player.ab_point -= 1
+                    elif event.key == pygame.K_5:
+                        player.HP += 1
+                        player.ab_point -= 1
+                        player.maxHP += 5
+
+
+
             '''待機監測'''
             if event.type == pygame.KEYUP and player.motion == "walk":
                 player.motion = "stand"
@@ -704,6 +747,8 @@ while True:
                 if creator.motion != "dead":
                     creator.nowHP = creator.maxHP
             print("復活！無敵開啟5秒。")
+            font_index = 180
+            textImage = myfont.render("復活！無敵開啟5秒。作為死亡懲罰，exp將被歸零，全場寵物生命值回滿。", True, yellow)
     else:
         if player.invincible_reciprocal > 0: # 如果有無敵秒數則進入檢測
             player.invincible_reciprocal -= 1 # 扣減1單位 60單位為1秒
@@ -754,6 +799,7 @@ while True:
                 creator.HP = creator.HP + creator.HP_growing * (creator.lv - tmp_lv)
                 creator.maxHP = creator.HP * 5
                 creator.nowHP = creator.maxHP
+                creator.give_exp = (creator.lv - 1) * 50 * 1.3
 
                 # 於出生地重生
                 creator.rect.left = creator.original_left
@@ -766,6 +812,7 @@ while True:
             if creator.invincible_reciprocal <= 0: # 如果秒數耗盡
                 creator.invincible_reciprocal = -1 # 秒數值設定在-1才不會進入迴圈
                 creator.invincible = False # 關閉無敵
+
 
 
     '''寵物攻擊玩家碰撞檢測'''
@@ -836,12 +883,18 @@ while True:
                         print("受到 " + str(damage) + " 傷害")
                         print("剩餘血量: " + str(player.nowHP))
                         print("等待復活中...(5秒)")
+                        font_index = 180
+                        textImage = myfont.render("受到{:.1f}點傷害，您已死亡。等待復活中...(5秒)".format(damage), True, red)
+
                     else:
                         player.invincible = True
                         player.invincible_reciprocal = 60 # 無敵1秒
                         print("受到 " + str(damage) + " 傷害")
                         print("剩餘血量: " + str(player.nowHP))
                         print("無敵開啟1秒 ")
+                        font_index = 60
+                        textImage = myfont.render("受到{:.1f}點傷害，剩餘血量:{:.1f}，無敵開啟1秒。".format(damage, player.nowHP), True, red)
+
 
 
     '''玩家攻擊寵物碰撞檢測'''
@@ -857,9 +910,10 @@ while True:
                 '''傷害判定'''
                 if criticalStrike <= player.LUK: # 爆擊成立 傷害 * 1.5
                     damage = ((player.ATK + CranATK) - (creator.DEF + PranDEF)) * 1.5 # 將玩家攻擊屬性取出扣減寵物生命值
+                    pet_hurt_more.play()
                 else: 
                     damage = ((player.ATK + CranATK) - (creator.DEF + PranDEF))
-                
+                    pet_hurt.play()
                 if damage <= 0: # 如果傷害為負數則傷害為0
                     damage = 0
                 creator.nowHP -= damage
@@ -868,10 +922,42 @@ while True:
                     creator.index = 0 # 將動畫幀數歸0 完整播放死亡動畫
                     creator.invincible = True
                     creator.invincible_reciprocal = 300 # 無敵5秒
-                    print("寵物已死亡 於10秒後重生")
+                    print("寵物已死亡 於5秒後重生")
+                    font_index = 60
+                    textImage = myfont.render("造成{:.1f}點傷害，寵物已被擊殺，於5秒後重生。回復10%血量。".format(damage, creator.nowHP), True, white)
+                    if player.nowHP + player.maxHP // 10 <= player.maxHP:
+                        player.nowHP += player.maxHP // 10
+                    else:
+                        player.nowHP = player.maxHP
+                    player.exp += creator.give_exp
+                    if player.exp >= player.lvup_exp:
+                        player_lvup.play()
+                        player.exp = 0
+                        player.lvup_exp  = player.lvup_exp * 1.5
+                        player.ab_point += 6
+                        player.lv += 1
                 else:
                     creator.invincible = True
                     creator.invincible_reciprocal = 30 # 無敵0.5秒
+                    font_index = 60
+                    textImage = myfont.render("造成{:.1f}點傷害，寵物剩餘血量:{:.1f}。".format(damage, creator.nowHP), True, white)
+
+
+    '''繪製能力值'''
+    ab_x = 20
+    ab_y = 20
+    abPos = ab_x, ab_x, 100, 100
+    abText = myfont.render("ATK: {} DEF: {} SPD: {} LUK: {} maxHP: {} nowHP: {:.1f} exp: {:.1f} lvupExp: {:.1f}".format(player.ATK, player.DEF, player.SPD, player.LUK, player.maxHP, player.nowHP, player.exp, player.lvup_exp), True, white)
+    screen.blit(abText, abPos)
+
+    '''繪製能力點訊息'''
+    if player.ab_point != 0:
+        point_x = 20
+        point_y = 80
+        pointPos = point_x, point_y, 100, 100
+        pointText = myfont.render("恭喜升級!!您目前有{}點升級點數: 按下按鍵 \"1\": ATK+1 \"2\": DEF+1 \"3\": SPD+0.5 \"4\": LUK+1 \"5\": maxHP+5".format(player.ab_point), True, yellow)
+        screen.blit(pointText, pointPos)
+
 
 
     '''繪製血條'''
@@ -879,6 +965,12 @@ while True:
     pygame.draw.rect(screen, (200, 200, 200), ((player.rect.left - 35, player.rect.top - 20), (100, 5)))
     # 繪製玩家剩餘血條
     pygame.draw.rect(screen, (255, 0, 0), ((player.rect.left - 35, player.rect.top - 20), (100 - ((player.maxHP - player.nowHP + 0.1) / player.maxHP) * 100, 5)) )
+    # 繪製玩家等級          
+    x = player.rect.left - 85
+    y = player.rect.top - 40
+    p = x, y, 100, 100
+    lvText = lvMyfont.render("Lv.{}".format(player.lv), True, white)
+    screen.blit(lvText, p)
     
     for name in character_name:
         creator = character_dic[name]
@@ -887,18 +979,69 @@ while True:
             pygame.draw.rect(screen, (200, 200, 200), ((creator.rect.left + 35, creator.rect.top - 20), (100, 5)))
             # 繪製寵物剩餘血條
             pygame.draw.rect(screen, (255, 0, 0), ((creator.rect.left + 35, creator.rect.top - 20), (100 - ((creator.maxHP - creator.nowHP + 0.1) / creator.maxHP) * 100, 5)) )
+            # 繪製寵物等級
+            x = creator.rect.left - 20
+            y = creator.rect.top - 40
+            p = x, y, 100, 100
+            lvText = lvMyfont.render("Lv.{}".format(creator.lv), True, white)
+            screen.blit(lvText, p)
         else:
             if creator.num == 670: # 塔斯夫特別校正
                 # 繪製寵物滿血血條
                 pygame.draw.rect(screen, (200, 200, 200), ((creator.rect.left + 45, creator.rect.top - 20), (50, 5)))
                 # 繪製寵物剩餘血條
                 pygame.draw.rect(screen, (255, 0, 0), ((creator.rect.left + 45, creator.rect.top - 20), (50 - ((creator.maxHP - creator.nowHP + 0.1) / creator.maxHP) * 50, 5)) )
+                # 繪製寵物等級
+                x = creator.rect.left - 60
+                y = creator.rect.top - 40
+                p = x, y, 100, 100
+                lvText = lvMyfont.render("Lv.{}".format(creator.lv), True, white)
+                screen.blit(lvText, p)
             else:
                 # 繪製寵物滿血血條
                 pygame.draw.rect(screen, (200, 200, 200), ((creator.rect.left + 10, creator.rect.top - 20), (50, 5)))
                 # 繪製寵物剩餘血條
                 pygame.draw.rect(screen, (255, 0, 0), ((creator.rect.left + 10, creator.rect.top - 20), (50 - ((creator.maxHP - creator.nowHP + 0.1) / creator.maxHP) * 50, 5)) )
+                # 繪製寵物等級
+                x = creator.rect.left - 45
+                y = creator.rect.top - 40
+                p = x, y, 100, 100
+                lvText = lvMyfont.render("Lv.{}".format(creator.lv), True, white)
+                screen.blit(lvText, p)
 
+    '''繪製提示'''
+    # 公告
+    if font_index != 0:
+        screen.blit(textImage, pos)
+        font_index -= 1
+
+    # 人物無敵
+    if player.invincible == True:
+        x = player.rect.left - 20
+        y = player.rect.top - 60
+        p = x, y, 100, 100
+        invincibleText = myfont.render("無敵", True, yellow)
+        screen.blit(invincibleText, p)
+    
+    # 寵物無敵
+    for name in character_name:
+        creator = character_dic[name]
+        if creator.invincible == True:
+            if creator.num == 670:
+                x = creator.rect.left + 40
+                y = creator.rect.top - 60
+            elif creator.num == 672:
+                x = creator.rect.left + 45 
+                y = creator.rect.top - 60
+
+            else:
+                x = creator.rect.left
+                y = creator.rect.top - 60
+            p = x, y, 100, 100
+            invincibleText = myfont.render("無敵", True, yellow)
+            screen.blit(invincibleText, p)
+
+    
 
 
 
